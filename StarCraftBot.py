@@ -14,6 +14,7 @@ class SCBot(sc2.BotAI):
         await self.build_assimilators()
         await self.expand()
         await self.build_offensive_buildings()
+        await self.train_units()
 
     # code responsible for building worker units
     async def build_workers(self):
@@ -79,6 +80,14 @@ class SCBot(sc2.BotAI):
             else:
                 if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
+
+    # function for handling the creation of offensive units
+    async def train_units(self):
+
+        for gateway in self.units(GATEWAY).ready.noqueue:
+
+            if self.can_afford(STALKER) and self.supply_left > 0:
+                await self.do(gateway.train(STALKER))
 
 def main():
     sc2.run_game(
