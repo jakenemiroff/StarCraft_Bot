@@ -1,7 +1,7 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR
+from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
 
 class SCBot(sc2.BotAI):
 
@@ -13,6 +13,7 @@ class SCBot(sc2.BotAI):
         await self.build_pylons()
         await self.build_assimilators()
         await self.expand()
+        await self.build_offensive_buildings()
 
     # code responsible for building worker units
     async def build_workers(self):
@@ -38,22 +39,24 @@ class SCBot(sc2.BotAI):
     # one in game resource
     async def build_assimilators(self):
 
-        for nexus in self.units(NEXUS).ready:
+        if self.units(PYLON).ready.exists or self.already_pending(PYLON):
 
-            geysers = self.state.vespene_geyser.closer_than(10.0, nexus)
+            for nexus in self.units(NEXUS).ready:
 
-            for geyser in geysers:
+                geysers = self.state.vespene_geyser.closer_than(10.0, nexus)
 
-                if not self.can_afford(ASSIMILATOR):
-                    break
+                for geyser in geysers:
 
-                worker = self.select_build_worker(geyser.position)
+                    if not self.can_afford(ASSIMILATOR):
+                        break
 
-                if worker is None:
-                    break
+                    worker = self.select_build_worker(geyser.position)
 
-                if not self.units(ASSIMILATOR).closer_than(1.0, geyser).exists:
-                    await self.do(worker.build(ASSIMILATOR, geyser))
+                    if worker is None:
+                        break
+
+                    if not self.units(ASSIMILATOR).closer_than(1.0, geyser).exists:
+                        await self.do(worker.build(ASSIMILATOR, geyser))
 
     # function for expanding to new map locations
     # necessary for acquiring additional resources
@@ -61,6 +64,21 @@ class SCBot(sc2.BotAI):
 
         if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS):
             await self.expand_now()
+
+    # function for building offensive buildings
+    async def build_offensive_buildings(self):
+        if self.units(PYLON).ready.exists:
+
+            pylon = self.units(PYLON).ready.random
+
+            if self.units(GATEWAY).ready.exists:
+
+                if not self.units(CYBERNETICSCORE):
+                    if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+                        await self.build(CYBERNETICSCORE, near=pylon)
+            else:
+                if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
+                    await self.build(GATEWAY, near=pylon)
 
 def main():
     sc2.run_game(
