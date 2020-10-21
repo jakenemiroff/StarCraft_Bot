@@ -12,6 +12,7 @@ class SCBot(sc2.BotAI):
         await self.build_workers()
         await self.build_pylons()
         await self.build_assimilators()
+        await self.expand()
 
     # code responsible for building worker units
     async def build_workers(self):
@@ -52,8 +53,14 @@ class SCBot(sc2.BotAI):
                     break
 
                 if not self.units(ASSIMILATOR).closer_than(1.0, geyser).exists:
-                    await self.do(worker.build(ASSIMILATOR, vaspene))
+                    await self.do(worker.build(ASSIMILATOR, geyser))
 
+    # function for expanding to new map locations
+    # necessary for acquiring additional resources
+    async def expand(self):
+
+        if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS):
+            await self.expand_now()
 
 def main():
     sc2.run_game(
