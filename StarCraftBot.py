@@ -65,7 +65,7 @@ class SCBot(sc2.BotAI):
     # necessary for acquiring additional resources
     async def expand(self):
 
-        if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS) and self.units(CYBERNETICSCORE).ready.exits:
+        if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS):
             await self.expand_now()
 
     # function for building offensive buildings
@@ -78,7 +78,7 @@ class SCBot(sc2.BotAI):
                     if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
                         await self.build(CYBERNETICSCORE, near=pylon)
 
-            elif len(self.units(GATEWAY)) < 10:
+            elif len(self.units(GATEWAY)) < 4:
                 if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
 
@@ -103,7 +103,7 @@ class SCBot(sc2.BotAI):
         if self.units(STALKER).amount > 20:
 
             for stalker in self.units(STALKER).idle:
-                await self.do(stalker.attack(self.find_target(self.state)))
+                await self.do(stalker.attack(self.scout(self.state)))
 
     def scout(self, state):
 
@@ -120,7 +120,7 @@ def main():
     sc2.run_game(
         sc2.maps.get("AbyssalReefLE"),
         [Bot(Race.Protoss, SCBot()), Computer(Race.Terran, Difficulty.Easy)],
-        realtime=True,
+        realtime=False,
     )
 
 main()
