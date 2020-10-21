@@ -2,6 +2,7 @@ import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
+import random
 
 class SCBot(sc2.BotAI):
 
@@ -15,6 +16,8 @@ class SCBot(sc2.BotAI):
         await self.expand()
         await self.build_offensive_buildings()
         await self.train_units()
+        await self.defend()
+        await self.attack()
 
     # code responsible for building worker units
     async def build_workers(self):
@@ -40,30 +43,29 @@ class SCBot(sc2.BotAI):
     # one in game resource
     async def build_assimilators(self):
 
-        if self.units(PYLON).ready.exists or self.already_pending(PYLON):
 
-            for nexus in self.units(NEXUS).ready:
+        for nexus in self.units(NEXUS).ready:
 
-                geysers = self.state.vespene_geyser.closer_than(10.0, nexus)
+            geysers = self.state.vespene_geyser.closer_than(10.0, nexus)
 
-                for geyser in geysers:
+            for geyser in geysers:
 
-                    if not self.can_afford(ASSIMILATOR):
-                        break
+                if not self.can_afford(ASSIMILATOR):
+                    break
 
-                    worker = self.select_build_worker(geyser.position)
+                worker = self.select_build_worker(geyser.position)
 
-                    if worker is None:
-                        break
+                if worker is None:
+                    break
 
-                    if not self.units(ASSIMILATOR).closer_than(1.0, geyser).exists:
-                        await self.do(worker.build(ASSIMILATOR, geyser))
+                if not self.units(ASSIMILATOR).closer_than(1.0, geyser).exists:
+                    await self.do(worker.build(ASSIMILATOR, geyser))
 
     # function for expanding to new map locations
     # necessary for acquiring additional resources
     async def expand(self):
 
-        if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS):
+        if self.units(NEXUS).amount < 2 and self.can_afford(NEXUS) and self.units(CYBERNETICSCORE).ready.exits:
             await self.expand_now()
 
     # function for building offensive buildings
@@ -72,12 +74,11 @@ class SCBot(sc2.BotAI):
 
             pylon = self.units(PYLON).ready.random
 
-            if self.units(GATEWAY).ready.exists:
-
-                if not self.units(CYBERNETICSCORE):
+            if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
                     if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
                         await self.build(CYBERNETICSCORE, near=pylon)
-            else:
+
+            elif len(self.units(GATEWAY)) < 10:
                 if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
 
@@ -88,6 +89,32 @@ class SCBot(sc2.BotAI):
 
             if self.can_afford(STALKER) and self.supply_left > 0:
                 await self.do(gateway.train(STALKER))
+
+    async def defend(self):
+
+        if self.units(STALKER).amount > 5:
+            if len(self.known_enemy_units) > 0:
+
+                for stalker in self.units(STALKER).idle:
+                    await self.do(stalker.attack(random.choice(self.known_enemy_units)))
+
+    async def attack(self):
+
+        if self.units(STALKER).amount > 20:
+
+            for stalker in self.units(STALKER).idle:
+                await self.do(stalker.attack(self.find_target(self.state)))
+
+    def scout(self, state):
+
+        if len(self.known_enemy_units) > 0:
+            return random.choice(self.known_enemy_units)
+
+        elif len(self.known_enemy_structures) > 0:
+            return random.choice(self.known_enemy_structures)
+
+        else:
+            return self.enemy_start_locations[0]
 
 def main():
     sc2.run_game(
