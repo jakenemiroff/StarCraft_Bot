@@ -1,14 +1,18 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
+from sc2.constants import *
 import random
 
 class SCBot(sc2.BotAI):
 
+    def __init__(self):
+        self.ITERATIONS_PER_MINUTE = 165
+        self.WORKER_CAP = 50
+
     # code executed on every step
     async def on_step(self, iteration):
-
+        self.iteration = iteration
         await self.distribute_workers()
         await self.build_workers()
         await self.build_pylons()
@@ -22,10 +26,11 @@ class SCBot(sc2.BotAI):
     # code responsible for building worker units
     async def build_workers(self):
 
-        for nexus in self.units(NEXUS).ready.noqueue:
+        if len(self.units(PROBE)) < self.WORKER_CAP:
+            for nexus in self.units(NEXUS).ready.noqueue:
 
-            if self.can_afford(PROBE):
-                await self.do(nexus.train(PROBE))
+                if self.can_afford(PROBE):
+                    await self.do(nexus.train(PROBE))
 
     # code for building pylons, a protoss structure enabling other buildings
     # to be built, and to increase supply cap
@@ -37,12 +42,11 @@ class SCBot(sc2.BotAI):
             if nexuses.exists:
 
                 if self.can_afford(PYLON):
-                    await self.build(PYLON, near=nexuses.first)
+                    await self.build(PYLON, near = nexuses.first)
 
     # function for constructing assimilators, a structure required to gather
     # one in game resource
     async def build_assimilators(self):
-
 
         for nexus in self.units(NEXUS).ready:
 
@@ -70,25 +74,50 @@ class SCBot(sc2.BotAI):
 
     # function for building offensive buildings
     async def build_offensive_buildings(self):
+
         if self.units(PYLON).ready.exists:
 
             pylon = self.units(PYLON).ready.random
 
             if self.units(GATEWAY).ready.exists and not self.units(CYBERNETICSCORE):
                     if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-                        await self.build(CYBERNETICSCORE, near=pylon)
+                        await self.build(CYBERNETICSCORE, near = pylon)
 
-            elif len(self.units(GATEWAY)) < 4:
+            elif len(self.units(GATEWAY)) < (self.iteration / self.ITERATIONS_PER_MINUTE):
                 if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
+
+            if self.units(CYBERNETICSCORE).ready.exists:
+
+                if len(self.units(STARGATE)) < ((self.iteration / self.ITERATIONS_PER_MINUTE) / 2):
+                    if self.can_afford(STARGATE) and not self.already_pending(STARGATE):
+                        await self.build(STARGATE, near = pylon)
+
+                if len(self.units(ROBOTICSFACILITY)) < ((self.iteration / self.ITERATIONS_PER_MINUTE) / 2):
+                    if self.can_afford(ROBOTICSFACILITY) and not self.already_pending(ROBOTICSFACILITY):
+                        await self.build(ROBOTICSFACILITY, near = pylon)
 
     # function for handling the creation of offensive units
     async def train_units(self):
 
         for gateway in self.units(GATEWAY).ready.noqueue:
 
-            if self.can_afford(STALKER) and self.supply_left > 0:
-                await self.do(gateway.train(STALKER))
+            if not self.units(STALKER).amount > self.units(VOIDRAY).amount:
+                if self.can_afford(STALKER) and self.supply_left > 0:
+                    await self.do(gateway.train(STALKER))
+
+            elif self.units(STALKER).amount > self.units(ZEALOT).amount:
+                if self.can_afford(ZEALOT) and self.supply_left > 0:
+                    await self.do(gateway.train(ZEALOT))
+
+        for starGate in self.units(STARGATE).ready.noqueue:
+            if self.can_afford(VOIDRAY) and self.supply_left > 0:
+                await self.do(starGate.train(VOIDRAY))
+
+        for roboticsFacility in self.units(ROBOTICSFACILITY).ready.noqueue:
+            if self.can_afford(IMMORTAL) and self.supply_left > 0:
+                await self.do(roboticsFacility.train(IMMORTAL))
+
 
     async def defend(self):
 
